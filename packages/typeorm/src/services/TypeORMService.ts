@@ -1,6 +1,6 @@
 import {Service} from "@tsed/common";
 import {$log} from "ts-log-debug";
-import {Connection, ConnectionOptions, createConnection} from "typeorm";
+import {Connection, ConnectionOptions, createConnection, getConnection} from "typeorm";
 
 @Service()
 export class TypeORMService {
@@ -16,7 +16,16 @@ export class TypeORMService {
    * @returns {Promise<"mongoose".Connection>}
    */
   async createConnection(id: string, settings: ConnectionOptions): Promise<any> {
-    const key = settings.name || id;
+    const key = settings.name || id || "default";
+
+    try {
+      const connection = getConnection(key);
+      if (connection) {
+        this.instances.set(key, connection);
+      }
+    } catch (err) {
+      $log.error(`connection error: ${err}`);
+    }
 
     if (key && this.has(key)) {
       return await this.get(key)!;
@@ -28,7 +37,7 @@ export class TypeORMService {
     try {
       const connection = await createConnection(settings!);
       $log.info(`Connected with typeorm to database: ${key}`);
-      this.instances.set(key || "default", connection);
+      this.instances.set(key, connection);
 
       return connection;
     } catch (err) {
